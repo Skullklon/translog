@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TransLog — Gestión de Transporte Corporativo</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080b0f; color: #e8f0fe; font-family: 'DM Sans', sans-serif; }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: #080b0f; }
+  ::-webkit-scrollbar-thumb { background: #1e2a38; border-radius: 3px; }
+  input, select, button { font-family: inherit; }
+  input:focus, select:focus { outline: 1px solid #00e5b3; }
+  @keyframes pulse_ { 0%,100%{opacity:1} 50%{opacity:.4} }
+  @keyframes progress { to { width: 95%; } }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  .page-anim { animation: fadeIn .2s ease; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+// ─── MOCK DATA ────────────────────────────────────────────────────────────────
+
+const BRANCHES = [
+  { id:"b1", name:"Sucursal A — Norte", budget:18000, color:"#00e5b3" },
+  { id:"b2", name:"Sucursal B — Sur",   budget:18000, color:"#ff6b35" },
+  { id:"b3", name:"Sucursal C — Este",  budget:10000, color:"#8b7fff" },
+];
+
+const VEHICLES = [
+  { id:"v1", plate:"PJD-1190", type:"Bus",    capacity:48, driver:"Rafael Domínguez", fuel:"Diesel"   },
+  { id:"v2", plate:"PJD-2244", type:"Van",    capacity:18, driver:"Carlos Méndez",    fuel:"Gasolina" },
+  { id:"v3", plate:"PJD-3311", type:"Minibus",capacity:26, driver:"Luis Polanco",     fuel:"Diesel"   },
+  { id:"v4", plate:"PJD-4421", type:"Van",    capacity:18, driver:"Mario Solano",     fuel:"Gasolina" },
+  { id:"v5", plate:"PJD-5502", type:"Minibus",capacity:26, driver:"José Ramírez",     fuel:"Diesel"   },
+];
+
+const ROUTES = [
+  { id:"r1", code:"R-01", name:"Norte — Zona Industria",    branchId:"b1", vehicleId:"v1", baseCost:580, distKm:24, active:true  },
+  { id:"r2", code:"R-02", name:"Sur — Residencial Beta",    branchId:"b2", vehicleId:"v2", baseCost:420, distKm:18, active:true  },
+  { id:"r3", code:"R-03", name:"Este — Urbanización Palma", branchId:"b3", vehicleId:"v3", baseCost:396, distKm:21, active:true  },
+  { id:"r4", code:"R-04", name:"Oeste — Centro Histórico",  branchId:"b1", vehicleId:"v4", baseCost:340, distKm:15, active:true  },
+  { id:"r5", code:"R-05", name:"Norte — Colinas del Sur",   branchId:"b2", vehicleId:"v5", baseCost:310, distKm:19, active:true  },
+  { id:"r6", code:"R-06", name:"Este — Los Praditos",       branchId:"b3", vehicleId:"v3", baseCost:290, distKm:16, active:false },
+];
+
+const EMPLOYEES = [
+  { id:"e1",  name:"María González Díaz",   branchId:"b1", code:"EMP-001" },
+  { id:"e2",  name:"Carlos Eduardo Peña",   branchId:"b1", code:"EMP-002" },
+  { id:"e3",  name:"Ana Patricia Vargas",   branchId:"b2", code:"EMP-003" },
+  { id:"e4",  name:"Luis Antonio Herrera",  branchId:"b2", code:"EMP-004" },
+  { id:"e5",  name:"Sandra Lucía Torres",   branchId:"b3", code:"EMP-005" },
+  { id:"e6",  name:"Miguel Ángel Castro",   branchId:"b3", code:"EMP-006" },
+  { id:"e7",  name:"Paola Jiménez Reyes",   branchId:"b1", code:"EMP-007" },
+  { id:"e8",  name:"Roberto Martínez N.",   branchId:"b2", code:"EMP-008" },
+  { id:"e9",  name:"Laura Beatriz Soto",    branchId:"b1", code:"EMP-009" },
+  { id:"e10", name:"Pedro José Almánzar",   branchId:"b3", code:"EMP-010" },
+];
+
+const TRIPS = [
+  { id:"t1",  routeId:"r1", vehicleId:"v1", date:"2025-06-19", passengers:44, totalCost:580,  source:"QR"     },
+  { id:"t2",  routeId:"r2", vehicleId:"v2", date:"2025-06-19", passengers:12, totalCost:420,  source:"OCR"    },
+  { id:"t3",  routeId:"r3", vehicleId:"v3", date:"2025-06-19", passengers:21, totalCost:396,  source:"QR"     },
+  { id:"t4",  routeId:"r4", vehicleId:"v4", date:"2025-06-19", passengers:8,  totalCost:340,  source:"QR"     },
+  { id:"t5",  routeId:"r5", vehicleId:"v5", date:"2025-06-18", passengers:24, totalCost:310,  source:"OCR"    },
+  { id:"t6",  routeId:"r1", vehicleId:"v1", date:"2025-06-18", passengers:46, totalCost:580,  source:"QR"     },
+  { id:"t7",  routeId:"r2", vehicleId:"v2", date:"2025-06-18", passengers:15, totalCost:420,  source:"QR"     },
+  { id:"t8",  routeId:"r3", vehicleId:"v3", date:"2025-06-17", passengers:20, totalCost:396,  source:"OCR"    },
+  { id:"t9",  routeId:"r1", vehicleId:"v1", date:"2025-06-17", passengers:43, totalCost:580,  source:"QR"     },
+  { id:"t10", routeId:"r4", vehicleId:"v4", date:"2025-06-17", passengers:9,  totalCost:340,  source:"MANUAL" },
+];
+
+const ALERTS = [
+  { id:"a1", title:"Ruta R-01 sobre presupuesto",      message:"+18% vs objetivo mensual",         severity:"CRITICAL", time:"14:22" },
+  { id:"a2", title:"PJD-4421 baja ocupación",          message:"Promedio 44% esta semana",         severity:"WARNING",  time:"09:10" },
+  { id:"a3", title:"12 registros OCR sin validar",     message:"Importación del 18/06 pendiente",  severity:"INFO",     time:"ayer"  },
+  { id:"a4", title:"Sucursal B excede límite mensual", message:"Gasto $19,200 / Límite $18,000",   severity:"CRITICAL", time:"lun"   },
+];
+
+const OCR_NAMES = [
+  { raw:"María González Díaz",  conf:0.97, sig:true,  empId:"e1" },
+  { raw:"Carlos Eduardo Peña",  conf:0.95, sig:true,  empId:"e2" },
+  { raw:"Luis Antonio Herrera", conf:0.91, sig:true,  empId:"e4" },
+  { raw:"Ana Patricia Vargas",  conf:0.88, sig:false, empId:"e3" },
+  { raw:"Rob??o Mart??ez N.",   conf:0.61, sig:false, empId:null  },
+  { raw:"Sandra Lucía Torres",  conf:0.93, sig:true,  empId:"e5" },
+  { raw:"Miguel Ángel Castro",  conf:0.96, sig:true,  empId:"e6" },
+  { raw:"Paola Jiménez R.",     conf:0.84, sig:true,  empId:"e7" },
+];
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const C = {
+  bg:"#080b0f", surface:"#0f1318", surface2:"#161c24", surface3:"#1c2430",
+  border:"#1e2a38", border2:"#243040",
+  accent:"#00e5b3", orange:"#ff6b35", purple:"#8b7fff", yellow:"#fbbf24", red:"#f43f5e",
+  text:"#e8f0fe", muted:"#5a7a9a", dim:"#2d3f52",
+};
+const FD = "'Syne', sans-serif";
+const FM = "'JetBrains Mono', monospace";
+const FB = "'DM Sans', sans-serif";
+
+const fmt   = n => "$" + Number(n).toLocaleString("es-DO", {minimumFractionDigits:0});
+const fmtD  = n => "$" + Number(n).toFixed(2);
+const pct   = (a,b) => b > 0 ? Math.round(a/b*100) : 0;
+const getR  = id => ROUTES.find(r=>r.id===id) || {};
+const getV  = id => VEHICLES.find(v=>v.id===id) || {};
+const getB  = id => BRANCHES.find(b=>b.id===id) || {};
+
+const ROUTE_STATS = ROUTES.filter(r=>r.active).map(r => {
+  const trips = TRIPS.filter(t=>t.routeId===r.id);
+  const totalCost = trips.reduce((s,t)=>s+t.totalCost,0);
+  const totalPass = trips.reduce((s,t)=>s+t.passengers,0);
+  const v = getV(r.vehicleId);
+  const avgOcc = trips.length ? trips.reduce((s,t)=>s+pct(t.passengers,v.capacity||1),0)/trips.length : 0;
+  return { ...r, trips:trips.length, totalCost, totalPass, avgCPP:totalPass>0?totalCost/totalPass:0, avgOcc:Math.round(avgOcc) };
+}).sort((a,b)=>b.totalCost-a.totalCost);
+
+const TOTAL_COST = ROUTE_STATS.reduce((s,r)=>s+r.totalCost,0);
+const TOTAL_PASS = TRIPS.reduce((s,t)=>s+t.passengers,0);
+const AVG_CPP    = TOTAL_PASS>0 ? TOTAL_COST/TOTAL_PASS : 0;
+
+const EMP_COSTS = EMPLOYEES.map(e => {
+  const cost  = 90 + ((e.id.charCodeAt(1)||5)*17)%100;
+  const trips = 8  + ((e.id.charCodeAt(1)||5)*3)%14;
+  return { ...e, branch:getB(e.branchId).name, totalCost:cost, trips };
+}).sort((a,b)=>b.totalCost-a.totalCost);
+
+// ─── TAG STYLES ───────────────────────────────────────────────────────────────
+const mkTag = (color,bg) => ({
+  display:"inline-flex",alignItems:"center",gap:4,
+  padding:"3px 9px",borderRadius:5,
+  fontSize:10,fontFamily:FM,letterSpacing:"0.5px",
+  color,background:bg,border:`1px solid ${color}33`,whiteSpace:"nowrap",
+});
+const TAGS = {
+  ok:    mkTag(C.accent,"rgba(0,229,179,.1)"),
+  warn:  mkTag(C.yellow,"rgba(251,191,36,.1)"),
+  bad:   mkTag(C.red,   "rgba(244,63,94,.1)"),
+  purple:mkTag(C.purple,"rgba(139,127,255,.1)"),
+  muted: mkTag(C.muted, "rgba(90,122,154,.1)"),
+};
+
+// ─── UI PRIMITIVES ────────────────────────────────────────────────────────────
+function Card({children,style={}}) {
+  return <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,overflow:"hidden",...style}}>{children}</div>;
+}
+function CardHeader({title,icon,right}) {
+  return (
+    <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+      <div style={{fontFamily:FD,fontSize:13,fontWeight:700,color:C.text,display:"flex",alignItems:"center",gap:8}}>{icon&&<span>{icon}</span>}{title}</div>
+      {right}
+    </div>
+  );
+}
+function KPI({label,value,sub,color,icon}) {
+  return (
+    <Card style={{padding:"20px 22px",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",top:0,right:0,width:70,height:70,borderRadius:"0 14px 0 70px",background:color,opacity:.08}}/>
+      <div style={{fontFamily:FM,fontSize:10,color:C.muted,letterSpacing:"1px",textTransform:"uppercase",marginBottom:10}}>{icon} {label}</div>
+      <div style={{fontFamily:FD,fontSize:30,fontWeight:800,color,letterSpacing:"-1px",lineHeight:1}}>{value}</div>
+      <div style={{fontSize:11,color:C.muted,marginTop:7,fontFamily:FM}}>{sub}</div>
+    </Card>
+  );
+}
+function Btn({children,primary,small,onClick,style={}}) {
+  const [hov,setHov] = React.useState(false);
+  return (
+    <button onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+      style={{padding:small?"6px 13px":"9px 18px",borderRadius:8,fontSize:small?11:13,fontFamily:FB,fontWeight:600,cursor:"pointer",
+        background:primary?(hov?"#00ffcc":C.accent):(hov?C.surface3:C.surface2),
+        color:primary?C.bg:C.muted,border:primary?"none":`1px solid ${C.border}`,
+        display:"inline-flex",alignItems:"center",gap:6,transition:"all .15s",...style}}>
+      {children}
+    </button>
+  );
+}
+function EffBar({pct:p,color=C.accent}) {
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:8}}>
+      <div style={{width:70,height:5,background:C.surface3,borderRadius:3,overflow:"hidden"}}>
+        <div style={{width:`${p}%`,height:"100%",background:color,borderRadius:3}}/>
+      </div>
+      <span style={{fontSize:11,fontFamily:FM,color:C.muted}}>{p}%</span>
+    </div>
+  );
+}
+function Ring({value,color,label}) {
+  const r=35,circ=2*Math.PI*r,dash=circ-(value/100)*circ;
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+      <div style={{position:"relative",width:90,height:90}}>
+        <svg width="90" height="90" viewBox="0 0 90 90" style={{transform:"rotate(-90deg)"}}>
+          <circle cx="45" cy="45" r={r} fill="none" stroke={C.surface3} strokeWidth="8"/>
+          <circle cx="45" cy="45" r={r} fill="none" stroke={color} strokeWidth="8"
+            strokeDasharray={circ} strokeDashoffset={dash} strokeLinecap="round"/>
+        </svg>
+        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <span style={{fontFamily:FD,fontSize:18,fontWeight:800,color}}>{value}%</span>
+        </div>
+      </div>
+      <span style={{fontSize:10,color:C.muted,fontFamily:FM}}>{label}</span>
+    </div>
+  );
+}
+
+// ─── PAGES ────────────────────────────────────────────────────────────────────
+
+function Dashboard() {
+  const branchTotals = BRANCHES.map(b => {
+    const rs = ROUTES.filter(r=>r.branchId===b.id);
+    const cost = rs.reduce((s,r)=>s+TRIPS.filter(t=>t.routeId===r.id).reduce((ss,t)=>ss+t.totalCost,0),0);
+    const trips= rs.reduce((s,r)=>s+TRIPS.filter(t=>t.routeId===r.id).length,0);
+    return {...b,cost,trips};
+  });
+  const maxCost = Math.max(...branchTotals.map(b=>b.cost));
+  const PALETTE = [C.accent,C.purple,C.orange,C.yellow,C.accent,C.purple];
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:16}} className="page-anim">
+      {/* KPIs */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+        <KPI label="Gasto Mensual"  value={fmt(TOTAL_COST)}   sub="↑ 3.2% vs mes anterior" color={C.accent}  icon="💰"/>
+        <KPI label="Viajes"          value={TRIPS.length}       sub="5 rutas activas"         color={C.orange}  icon="🚌"/>
+        <KPI label="Pasajeros"       value={TOTAL_PASS}         sub="Ocupación prom. 76%"     color={C.purple}  icon="👥"/>
+        <KPI label="Costo/Persona"   value={fmtD(AVG_CPP)}     sub="↓ $0.32 del objetivo"    color={C.yellow}  icon="📊"/>
+      </div>
+
+      {/* Bar chart + Alerts */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:12}}>
+        <Card>
+          <CardHeader title="Costo Mensual por Ruta" icon="📈" right={<span style={TAGS.ok}>6 rutas</span>}/>
+          <div style={{padding:"20px 20px 14px"}}>
+            <div style={{display:"flex",alignItems:"flex-end",gap:10,height:130}}>
+              {ROUTE_STATS.map((r,i) => {
+                const h = Math.round((r.totalCost/Math.max(...ROUTE_STATS.map(x=>x.totalCost)))*100);
+                return (
+                  <div key={r.id} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
+                    <div style={{fontFamily:FM,fontSize:9,color:PALETTE[i]}}>{fmt(r.totalCost)}</div>
+                    <div style={{flex:1,width:"100%",display:"flex",alignItems:"flex-end"}}>
+                      <div style={{width:"100%",height:`${h}%`,minHeight:8,background:`linear-gradient(180deg,${PALETTE[i]},${PALETTE[i]}88)`,borderRadius:"4px 4px 0 0"}}/>
+                    </div>
+                    <div style={{fontFamily:FM,fontSize:9,color:C.muted}}>{r.code}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Alertas Activas" icon="⚠️" right={<span style={TAGS.bad}>{ALERTS.length} pend.</span>}/>
+          {ALERTS.map(a => (
+            <div key={a.id} style={{padding:"11px 16px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"flex-start",gap:10,cursor:"pointer"}}>
+              <div style={{width:28,height:28,borderRadius:7,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,
+                background:a.severity==="CRITICAL"?"rgba(244,63,94,.12)":a.severity==="WARNING"?"rgba(251,191,36,.1)":"rgba(139,127,255,.1)"}}>
+                {a.severity==="CRITICAL"?"🔴":a.severity==="WARNING"?"⚠️":"ℹ️"}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:600,color:C.text}}>{a.title}</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:2}}>{a.message}</div>
+              </div>
+              <div style={{fontSize:10,color:C.muted,fontFamily:FM,flexShrink:0}}>{a.time}</div>
+            </div>
+          ))}
+        </Card>
+      </div>
+
+      {/* Route ranking + Branch compare */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 320px",gap:12}}>
+        <Card>
+          <CardHeader title="Ranking de Rutas" icon="🏆" right={<Btn small>Ver todas →</Btn>}/>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead>
+              <tr style={{borderBottom:`1px solid ${C.border}`}}>
+                {["#","Ruta","Costo Mes","$/Persona","Ocupación","Estado"].map(h=>(
+                  <th key={h} style={{padding:"9px 16px",textAlign:"left",fontSize:10,textTransform:"uppercase",letterSpacing:"1px",color:C.muted,fontFamily:FM,fontWeight:400}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ROUTE_STATS.map((r,i) => {
+                const v = getV(r.vehicleId);
+                const ec = r.avgOcc>=80?C.accent:r.avgOcc>=60?C.yellow:C.red;
+                const et = r.avgOcc>=80?TAGS.ok:r.avgOcc>=60?TAGS.warn:TAGS.bad;
+                const el = r.avgOcc>=80?"✓ OK":r.avgOcc>=60?"⚡ Rev.":"⚠ Inef.";
+                return (
+                  <tr key={r.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                    <td style={{padding:"12px 16px"}}><span style={{fontFamily:FM,fontSize:11,color:C.muted}}>{String(i+1).padStart(2,"0")}</span></td>
+                    <td style={{padding:"12px 16px"}}>
+                      <div style={{fontSize:13,fontWeight:600,color:C.text}}>{r.name}</div>
+                      <div style={{fontSize:11,color:C.muted}}>{v.type} {v.capacity}p · {v.plate} · {r.trips} viajes</div>
+                    </td>
+                    <td style={{padding:"12px 16px"}}><span style={{fontFamily:FD,fontSize:14,fontWeight:700,color:C.accent}}>{fmt(r.totalCost)}</span></td>
+                    <td style={{padding:"12px 16px",fontFamily:FM,fontSize:12,color:C.text}}>{fmtD(r.avgCPP)}</td>
+                    <td style={{padding:"12px 16px"}}><EffBar pct={r.avgOcc} color={ec}/></td>
+                    <td style={{padding:"12px 16px"}}><span style={et}>{el}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Card>
+        <Card>
+          <CardHeader title="Por Sucursal" icon="🏢"/>
+          <div style={{padding:"16px 20px"}}>
+            {branchTotals.map(b => (
+              <div key={b.id} style={{marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:600,color:C.text}}>{b.name}</div>
+                    <div style={{fontSize:10,color:C.muted}}>{b.trips} viajes</div>
+                  </div>
+                  <span style={{fontFamily:FD,fontSize:14,fontWeight:700,color:b.color}}>{fmt(b.cost)}</span>
+                </div>
+                <div style={{height:5,background:C.surface3,borderRadius:3,overflow:"hidden"}}>
+                  <div style={{width:`${pct(b.cost,maxCost)}%`,height:"100%",background:b.color,borderRadius:3}}/>
+                </div>
+                <div style={{fontSize:10,color:b.cost>b.budget?C.red:C.muted,marginTop:3,fontFamily:FM}}>
+                  {pct(b.cost,b.budget)}% del presupuesto {b.cost>b.budget?"⚠ EXCEDIDO":""}
+                </div>
+              </div>
+            ))}
+            <div style={{marginTop:12,paddingTop:14,borderTop:`1px solid ${C.border}`}}>
+              <div style={{fontSize:12,fontWeight:600,color:C.text,marginBottom:12}}>Ocupación Promedio</div>
+              <div style={{display:"flex",justifyContent:"space-around"}}>
+                <Ring value={91} color={C.accent}  label="R-01"/>
+                <Ring value={68} color={C.purple}  label="R-02"/>
+                <Ring value={44} color={C.red}     label="R-04"/>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Employee top + recent trips */}
+      <div style={{display:"grid",gridTemplateColumns:"260px 1fr",gap:12}}>
+        <Card>
+          <CardHeader title="Top Empleados" icon="👤"/>
+          <div style={{paddingBottom:4}}>
+            {EMP_COSTS.slice(0,8).map((e,i) => {
+              const colors=[C.accent,C.purple,C.orange,C.yellow,C.accent,C.purple,C.orange,C.yellow];
+              return (
+                <div key={e.id} style={{padding:"9px 16px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontFamily:FM,fontSize:10,color:C.muted,width:16}}>{i+1}</span>
+                  <div style={{width:28,height:28,borderRadius:"50%",background:colors[i],color:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,flexShrink:0}}>{e.name.slice(0,2).toUpperCase()}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:11,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.name}</div>
+                    <div style={{fontSize:10,color:C.muted}}>{e.trips} viajes</div>
+                  </div>
+                  <span style={{fontFamily:FM,fontSize:11,color:C.yellow,flexShrink:0}}>{fmtD(e.totalCost)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Viajes Recientes" icon="🕐"/>
+          <div style={{paddingBottom:4}}>
+            {TRIPS.slice(0,7).map(t => {
+              const r=getR(t.routeId),v=getV(t.vehicleId);
+              const o=pct(t.passengers,v.capacity||1);
+              const ot=o>=80?TAGS.ok:o>=60?TAGS.warn:TAGS.bad;
+              const st=t.source==="QR"?TAGS.ok:t.source==="OCR"?TAGS.purple:TAGS.muted;
+              return (
+                <div key={t.id} style={{padding:"10px 20px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:14}}>
+                  <div style={{fontFamily:FM,fontSize:10,color:C.muted,width:50,flexShrink:0}}>{t.date.slice(5)}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:600,color:C.text}}>{r.name}</div>
+                    <div style={{fontSize:11,color:C.muted}}>{v.plate} · {v.driver} · {t.passengers}/{v.capacity}p</div>
+                  </div>
+                  <span style={ot}>{o}% occ.</span>
+                  <span style={st}>{t.source}</span>
+                  <span style={{fontFamily:FD,fontSize:14,fontWeight:700,color:C.accent}}>{fmt(t.totalCost)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function Checkin() {
+  const [tab,setTab]         = React.useState("ocr");
+  const [ocrState,setOcr]    = React.useState("idle");
+  const [ocrNames,setNames]  = React.useState([]);
+  const [selRoute,setSelR]   = React.useState(null);
+  const [feed,setFeed]       = React.useState([
+    {time:"18:51",name:"María González",route:"R-01",method:"QR",ok:true},
+    {time:"18:50",name:"Carlos Peña",   route:"R-01",method:"QR",ok:true},
+    {time:"18:49",name:"Luis Herrera",  route:"R-03",method:"QR",ok:true},
+    {time:"18:47",name:"Ana Vargas",    route:"R-02",method:"QR",ok:true},
+    {time:"18:44",name:"Nombre ileg.",  route:"R-01",method:"OCR",ok:false},
+  ]);
+  const [qrForm,setQrF] = React.useState({name:"",confirmed:false});
+  const [qrDone,setQrD] = React.useState(false);
+
+  const runOcr = () => {
+    setOcr("processing");
+    setTimeout(() => { setNames(OCR_NAMES); setOcr("done"); }, 2200);
+  };
+  const submitQr = () => {
+    if(!qrForm.name||!qrForm.confirmed||!selRoute) return;
+    const r=getR(selRoute);
+    const now=new Date().toLocaleTimeString("es-DO",{hour:"2-digit",minute:"2-digit"});
+    setFeed(f=>[{time:now,name:qrForm.name,route:r.code,method:"QR",ok:true},...f]);
+    setQrD(true);
+    setQrF({name:"",confirmed:false});
+    setTimeout(()=>setQrD(false),3000);
+  };
+  const validate=(i,v)=>setNames(ns=>ns.map((n,j)=>j===i?{...n,validated:v}:n));
+
+  return (
+    <div style={{display:"grid",gridTemplateColumns:"1fr 290px",gap:14}} className="page-anim">
+      <Card>
+        <div style={{display:"flex",borderBottom:`1px solid ${C.border}`}}>
+          {[["ocr","📷 OCR"],["qr","📱 QR"],["batch","📦 Batch"]].map(([k,l])=>(
+            <div key={k} onClick={()=>setTab(k)} style={{padding:"12px 20px",fontSize:12,cursor:"pointer",fontWeight:600,
+              color:tab===k?C.accent:C.muted,borderBottom:tab===k?`2px solid ${C.accent}`:"2px solid transparent",
+              marginBottom:-1,transition:"all .15s"}}>{l}</div>
+          ))}
+        </div>
+
+        {tab==="ocr" && (
+          <div style={{padding:20}}>
+            {ocrState==="idle" && (
+              <div onClick={runOcr} style={{border:`2px dashed ${C.border2}`,borderRadius:10,padding:"44px 20px",textAlign:"center",cursor:"pointer"}}>
+                <div style={{fontSize:48,marginBottom:10}}>📋</div>
+                <div style={{fontSize:14,fontWeight:600,color:C.text,marginBottom:4}}>Haz clic para simular procesamiento OCR</div>
+                <div style={{fontSize:12,color:C.muted,marginBottom:14}}>El sistema detecta nombres y firmas automáticamente</div>
+                <Btn primary>Simular OCR →</Btn>
+              </div>
+            )}
+            {ocrState==="processing" && (
+              <div style={{textAlign:"center",padding:"44px 20px"}}>
+                <div style={{fontSize:40,marginBottom:12}}>🔍</div>
+                <div style={{fontSize:14,fontWeight:600,color:C.text,marginBottom:6}}>Procesando con Google Vision API…</div>
+                <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Extrayendo nombres y detectando firmas</div>
+                <div style={{height:4,background:C.surface3,borderRadius:2,overflow:"hidden"}}>
+                  <div style={{height:"100%",background:`linear-gradient(90deg,${C.accent},${C.purple})`,borderRadius:2,animation:"progress 2.2s ease-out forwards",width:"0%"}}/>
+                </div>
+              </div>
+            )}
+            {ocrState==="done" && (
+              <div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,padding:"10px 14px",background:C.surface2,borderRadius:8,border:`1px solid ${C.border}`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:C.accent,animation:"pulse_ 1.5s infinite"}}/>
+                    <span style={{fontSize:12,fontWeight:600,color:C.text}}>OCR Completado · R-01 · 19/06/2025</span>
+                    <span style={TAGS.ok}>Confianza: 91.4%</span>
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <Btn small onClick={()=>setOcr("idle")}>← Reintentar</Btn>
+                    <Btn small primary>✓ Confirmar {ocrNames.length}</Btn>
+                  </div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 80px",gap:"0 8px",padding:"6px 10px",fontSize:10,color:C.muted,fontFamily:FM,textTransform:"uppercase",letterSpacing:"0.5px",borderBottom:`1px solid ${C.border}`}}>
+                  <span>Nombre extraído</span><span>Empleado</span><span>Firma / Conf.</span><span>Acción</span>
+                </div>
+                {ocrNames.map((n,i) => (
+                  <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 80px",gap:"0 8px",padding:"10px 10px",fontSize:12,borderBottom:`1px solid ${C.border}`,alignItems:"center",background:n.validated===false?"rgba(244,63,94,.04)":"transparent"}}>
+                    <span style={{fontFamily:FM,color:n.conf<0.8?C.yellow:C.text}}>{n.raw}</span>
+                    <span style={{color:n.empId?C.accent:C.muted}}>{n.empId?EMPLOYEES.find(e=>e.id===n.empId)?.name:"— Sin match —"}</span>
+                    <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                      <span style={n.sig?TAGS.ok:TAGS.muted}>{n.sig?"✍ firma":"sin firma"}</span>
+                      <span style={n.conf>=0.85?TAGS.ok:TAGS.warn}>{Math.round(n.conf*100)}%</span>
+                    </div>
+                    <div style={{display:"flex",gap:4}}>
+                      <button onClick={()=>validate(i,true)} style={{width:28,height:28,borderRadius:6,border:"none",cursor:"pointer",background:n.validated===true?C.accent:C.surface3,color:n.validated===true?C.bg:C.muted,fontSize:13}}>✓</button>
+                      <button onClick={()=>validate(i,false)} style={{width:28,height:28,borderRadius:6,border:"none",cursor:"pointer",background:n.validated===false?C.red:C.surface3,color:n.validated===false?"#fff":C.muted,fontSize:13}}>✗</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab==="qr" && (
+          <div style={{padding:20}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+              <div>
+                <div style={{fontSize:12,color:C.muted,marginBottom:10}}>1. Selecciona la ruta:</div>
+                {ROUTES.filter(r=>r.active).map(r=>(
+                  <div key={r.id} onClick={()=>setSelR(r.id)} style={{padding:"10px 14px",marginBottom:6,background:selRoute===r.id?"rgba(0,229,179,.08)":C.surface2,border:`1px solid ${selRoute===r.id?C.accent:C.border}`,borderRadius:8,cursor:"pointer",fontSize:13,transition:"all .15s"}}>
+                    🛣️ {r.code} · {r.name}
+                  </div>
+                ))}
+                {selRoute && (
+                  <div style={{marginTop:14}}>
+                    <div style={{fontSize:12,color:C.muted,marginBottom:8}}>2. Simular check-in:</div>
+                    <input value={qrForm.name} onChange={e=>setQrF(f=>({...f,name:e.target.value}))} placeholder="Nombre del empleado"
+                      style={{width:"100%",background:C.surface3,border:`1px solid ${C.border2}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13,marginBottom:8,boxSizing:"border-box"}}/>
+                    <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:12,color:C.muted}}>
+                      <input type="checkbox" checked={qrForm.confirmed} onChange={e=>setQrF(f=>({...f,confirmed:e.target.checked}))} style={{width:16,height:16,accentColor:C.accent}}/>
+                      Confirmo abordaje
+                    </label>
+                    <Btn primary style={{marginTop:10,width:"100%"}} onClick={submitQr}>✓ Registrar Abordaje</Btn>
+                    {qrDone && <div style={{marginTop:10,padding:"10px 14px",background:"rgba(0,229,179,.1)",border:`1px solid ${C.accent}33`,borderRadius:8,fontSize:12,color:C.accent}}>✅ Abordaje registrado correctamente</div>}
+                  </div>
+                )}
+              </div>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+                {selRoute ? (
+                  <>
+                    <div style={{fontSize:11,color:C.muted}}>QR generado para {getR(selRoute).code}:</div>
+                    <div style={{background:"white",padding:14,borderRadius:12,width:130,height:130,display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+                      {Array.from({length:49},(_,i)=>{
+                        const b=[0,1,2,3,4,5,6,7,13,14,20,21,27,28,34,35,41,42,43,44,45,46,47,48].includes(i);
+                        const rnd=(i*7+3)%3===0;
+                        return <div key={i} style={{borderRadius:1,background:(b||rnd)?"#000":"#fff"}}/>;
+                      })}
+                    </div>
+                    <div style={{fontFamily:FM,fontSize:10,color:C.accent}}>TRANSLOG-{getR(selRoute).code}-2025</div>
+                    <Btn small primary>⬇ Descargar QR</Btn>
+                    <div style={{fontSize:10,color:C.muted}}>Válido hoy · Expira 23:59</div>
+                  </>
+                ) : <div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>← Selecciona una ruta para ver su QR</div>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab==="batch" && (
+          <div style={{padding:20}}>
+            <div style={{border:`2px dashed ${C.border2}`,borderRadius:10,padding:"28px 20px",textAlign:"center",marginBottom:14}}>
+              <div style={{fontSize:36,marginBottom:8}}>📁</div>
+              <div style={{fontSize:13,fontWeight:600,color:C.text,marginBottom:4}}>Subida masiva de imágenes históricas</div>
+              <div style={{fontSize:12,color:C.muted}}>Múltiples archivos · Cola de procesamiento automática</div>
+            </div>
+            {[["listado_01_may.jpg","done",44,""],["listado_02_may.jpg","processing",null,""],["listado_03_may.jpg","review",null,"3 nombres ilegibles"],["listado_04_abr.jpg","done",38,""]].map(([name,status,n,note],i)=>(
+              <div key={i} style={{padding:"10px 14px",marginBottom:6,background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:16}}>📷</span>
+                <span style={{flex:1,fontSize:12,color:C.text}}>{name}</span>
+                {status==="done"       && <><span style={TAGS.ok}>✓ Procesado</span><span style={{fontSize:11,color:C.muted}}>{n} empleados</span></>}
+                {status==="processing" && <><div style={{width:8,height:8,borderRadius:"50%",background:C.accent,animation:"pulse_ 1s infinite"}}/><span style={TAGS.warn}>Procesando…</span></>}
+                {status==="review"     && <><span style={TAGS.bad}>⚠ Revisión</span><span style={{fontSize:11,color:C.muted}}>{note}</span></>}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Live feed */}
+      <Card>
+        <CardHeader title="Check-ins en Vivo" icon="🔴" right={<div style={{width:8,height:8,borderRadius:"50%",background:C.accent,animation:"pulse_ 1.5s infinite"}}/>}/>
+        {feed.slice(0,12).map((c,i)=>(
+          <div key={i} style={{padding:"10px 16px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontFamily:FM,fontSize:10,color:i<2?C.accent:C.muted,width:36}}>{c.time}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:600,color:C.text}}>{c.name}</div>
+              <div style={{fontSize:10,color:C.muted}}>{c.method} · {c.route}</div>
+            </div>
+            <span style={c.ok?TAGS.ok:TAGS.warn}>{c.ok?"✓":"Rev"}</span>
+          </div>
+        ))}
+        <div style={{padding:"12px 16px",borderTop:`1px solid ${C.border}`,fontSize:12,color:C.muted,textAlign:"center"}}>{feed.length} registros hoy</div>
+      </Card>
+    </div>
+  );
+}
+
+function Trips() {
+  const [modal,setModal] = React.useState(false);
+  const [form,setForm]   = React.useState({routeId:"r1",vehicleId:"v1",date:"2025-06-20",cost:""});
+  const [saved,setSaved] = React.useState(false);
+
+  const save = () => { setSaved(true); setTimeout(()=>{setSaved(false);setModal(false);},1500); };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}} className="page-anim">
+      {modal ? (
+        <Card style={{padding:24}}>
+          <div style={{fontFamily:FD,fontSize:16,fontWeight:700,color:C.text,marginBottom:18}}>Nuevo Viaje</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+            {[
+              {label:"Ruta",key:"routeId",type:"select",opts:ROUTES.filter(r=>r.active).map(r=>({v:r.id,l:`${r.code} · ${r.name}`}))},
+              {label:"Vehículo",key:"vehicleId",type:"select",opts:VEHICLES.map(v=>({v:v.id,l:`${v.plate} · ${v.driver}`}))},
+              {label:"Fecha",key:"date",type:"date"},
+              {label:"Costo Total ($)",key:"cost",type:"number",placeholder:"580.00"},
+            ].map(f=>(
+              <div key={f.key}>
+                <div style={{fontSize:11,color:C.muted,marginBottom:5,fontFamily:FM,textTransform:"uppercase"}}>{f.label}</div>
+                {f.type==="select"
+                  ? <select value={form[f.key]} onChange={e=>setForm(x=>({...x,[f.key]:e.target.value}))} style={{width:"100%",background:C.surface2,border:`1px solid ${C.border2}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13}}>
+                      {f.opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+                    </select>
+                  : <input type={f.type} value={form[f.key]} placeholder={f.placeholder} onChange={e=>setForm(x=>({...x,[f.key]:e.target.value}))}
+                      style={{width:"100%",background:C.surface2,border:`1px solid ${C.border2}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13,boxSizing:"border-box"}}/>
+                }
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <Btn onClick={()=>setModal(false)}>Cancelar</Btn>
+            <Btn primary onClick={save}>{saved?"✅ Guardado!":"✓ Crear Viaje"}</Btn>
+          </div>
+        </Card>
+      ) : (
+        <div style={{display:"flex",justifyContent:"flex-end"}}><Btn primary onClick={()=>setModal(true)}>+ Nuevo Viaje</Btn></div>
+      )}
+      <Card>
+        <CardHeader title={`Viajes del Mes (${TRIPS.length})`} icon="🗺️"/>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead>
+            <tr style={{borderBottom:`1px solid ${C.border}`}}>
+              {["Fecha","Ruta","Vehículo","Pasajeros","Ocupación","Costo","$/Persona","Fuente"].map(h=>(
+                <th key={h} style={{padding:"9px 16px",textAlign:"left",fontSize:10,textTransform:"uppercase",letterSpacing:"1px",color:C.muted,fontFamily:FM,fontWeight:400}}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {TRIPS.map(t=>{
+              const r=getR(t.routeId),v=getV(t.vehicleId);
+              const o=pct(t.passengers,v.capacity||1);
+              return (
+                <tr key={t.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                  <td style={{padding:"11px 16px",fontFamily:FM,fontSize:11,color:C.muted}}>{t.date}</td>
+                  <td style={{padding:"11px 16px"}}><div style={{fontSize:13,fontWeight:600,color:C.text}}>{r.code}</div><div style={{fontSize:11,color:C.muted}}>{r.name}</div></td>
+                  <td style={{padding:"11px 16px"}}><div style={{fontSize:12,color:C.text}}>{v.plate}</div><div style={{fontSize:11,color:C.muted}}>{v.driver}</div></td>
+                  <td style={{padding:"11px 16px",fontFamily:FM,fontSize:12}}>{t.passengers}/{v.capacity}</td>
+                  <td style={{padding:"11px 16px"}}><EffBar pct={o} color={o>=70?C.accent:C.yellow}/></td>
+                  <td style={{padding:"11px 16px"}}><span style={{fontFamily:FD,fontSize:14,fontWeight:700,color:C.accent}}>{fmt(t.totalCost)}</span></td>
+                  <td style={{padding:"11px 16px",fontFamily:FM,fontSize:11,color:C.yellow}}>{fmtD(t.totalCost/t.passengers)}</td>
+                  <td style={{padding:"11px 16px"}}><span style={t.source==="QR"?TAGS.ok:t.source==="OCR"?TAGS.purple:TAGS.muted}>{t.source}</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+function Reports() {
+  const [exported,setExp] = React.useState(false);
+  const rows = ROUTE_STATS.map(r=>({
+    ruta:`${r.code} — ${r.name}`,sucursal:getB(r.branchId).name,
+    viajes:r.trips,pasajeros:r.totalPass,
+    costoTotal:fmt(r.totalCost),cxp:fmtD(r.avgCPP),
+    occ:`${r.avgOcc}%`,eff:r.avgOcc>=80?"Óptima":r.avgOcc>=60?"Revisar":"Ineficiente",
+    avgOcc:r.avgOcc,
+  }));
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}} className="page-anim">
+      <Card style={{padding:18}}>
+        <div style={{display:"flex",gap:12,alignItems:"flex-end",flexWrap:"wrap"}}>
+          {[["DESDE","date","2025-06-01"],["HASTA","date","2025-06-30"]].map(([l,t,d])=>(
+            <div key={l}>
+              <div style={{fontSize:11,color:C.muted,marginBottom:5,fontFamily:FM}}>{l}</div>
+              <input type={t} defaultValue={d} style={{background:C.surface2,border:`1px solid ${C.border2}`,borderRadius:8,padding:"8px 12px",color:C.text,fontSize:12}}/>
+            </div>
+          ))}
+          <div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:5,fontFamily:FM}}>SUCURSAL</div>
+            <select style={{background:C.surface2,border:`1px solid ${C.border2}`,borderRadius:8,padding:"8px 12px",color:C.text,fontSize:12}}>
+              <option>Todas</option>{BRANCHES.map(b=><option key={b.id}>{b.name}</option>)}
+            </select>
+          </div>
+          <Btn primary onClick={()=>{setExp(true);setTimeout(()=>setExp(false),2500);}}>
+            {exported?"✅ Generado!":"⬇ Exportar Excel"}
+          </Btn>
+        </div>
+      </Card>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+        <KPI label="Costo Total"   value={fmt(TOTAL_COST)}            sub="Jun 2025"             color={C.accent}  icon="💰"/>
+        <KPI label="Costo/Persona" value={fmtD(AVG_CPP)}              sub="Promedio rutas"        color={C.yellow}  icon="👤"/>
+        <KPI label="Ruta más cara" value="R-01"                        sub={fmt(ROUTE_STATS[0]?.totalCost||0)} color={C.orange} icon="🔺"/>
+        <KPI label="Mejor Ocup."  value="R-01"                        sub="91% ocupación"         color={C.purple}  icon="⭐"/>
+      </div>
+      <Card>
+        <CardHeader title="Costo por Persona por Ruta — Junio 2025" icon="📋"/>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead>
+            <tr style={{borderBottom:`1px solid ${C.border}`}}>
+              {["Ruta","Sucursal","Viajes","Pasajeros","Costo Total","$/Persona","Ocupación","Estado"].map(h=>(
+                <th key={h} style={{padding:"9px 16px",textAlign:"left",fontSize:10,textTransform:"uppercase",letterSpacing:"1px",color:C.muted,fontFamily:FM,fontWeight:400}}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row,i)=>{
+              const et=row.avgOcc>=80?TAGS.ok:row.avgOcc>=60?TAGS.warn:TAGS.bad;
+              return (
+                <tr key={i} style={{borderBottom:`1px solid ${C.border}`}}>
+                  <td style={{padding:"11px 16px",fontSize:13,fontWeight:600,color:C.text}}>{row.ruta}</td>
+                  <td style={{padding:"11px 16px",fontSize:12,color:C.muted}}>{row.sucursal}</td>
+                  <td style={{padding:"11px 16px",fontFamily:FM,fontSize:12}}>{row.viajes}</td>
+                  <td style={{padding:"11px 16px",fontFamily:FM,fontSize:12}}>{row.pasajeros}</td>
+                  <td style={{padding:"11px 16px"}}><span style={{fontFamily:FD,fontSize:14,fontWeight:700,color:C.accent}}>{row.costoTotal}</span></td>
+                  <td style={{padding:"11px 16px",fontFamily:FM,fontSize:12,color:C.yellow}}>{row.cxp}</td>
+                  <td style={{padding:"11px 16px"}}><EffBar pct={row.avgOcc} color={row.avgOcc>=70?C.accent:C.yellow}/></td>
+                  <td style={{padding:"11px 16px"}}><span style={et}>{row.eff}</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr style={{borderTop:`2px solid ${C.border2}`}}>
+              <td colSpan={3} style={{padding:"12px 16px",fontSize:13,fontWeight:700,color:C.text,fontFamily:FD}}>TOTAL</td>
+              <td style={{padding:"12px 16px",fontFamily:FM,fontSize:13,fontWeight:700}}>{TOTAL_PASS}</td>
+              <td style={{padding:"12px 16px"}}><span style={{fontFamily:FD,fontSize:15,fontWeight:800,color:C.accent}}>{fmt(TOTAL_COST)}</span></td>
+              <td style={{padding:"12px 16px",fontFamily:FM,fontSize:13,fontWeight:700,color:C.yellow}}>{fmtD(AVG_CPP)}</td>
+              <td colSpan={2}/>
+            </tr>
+          </tfoot>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+// ─── NAV ──────────────────────────────────────────────────────────────────────
+const NAV = [
+  {id:"dashboard",label:"Dashboard",   icon:"📊",group:"Principal"},
+  {id:"trips",    label:"Viajes",       icon:"🗺️",group:"Principal",badge:3},
+  {id:"checkin",  label:"Check-in",     icon:"📷",group:"Principal"},
+  {id:"reports",  label:"Reportes",     icon:"📋",group:"Análisis"},
+];
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [page,setPage]   = React.useState("dashboard");
+  const [role,setRole]   = React.useState("coordinator");
+  const [period,setPeriod] = React.useState("MES");
+
+  const titles = {dashboard:"Dashboard Operativo",trips:"Gestión de Viajes",checkin:"Check-in Digital",reports:"Reportes & Exportación"};
+  const subs   = {dashboard:"Junio 2025 · 3 sucursales · Demo interactivo",trips:"Historial de viajes con costo y ocupación",checkin:"OCR desde imagen · Formulario QR por ruta",reports:"Exportación a Excel · Filtros por fecha y ruta"};
+  const groups = [...new Set(NAV.map(n=>n.group))];
+
+  return (
+    <div style={{display:"flex",minHeight:"100vh",background:C.bg,fontFamily:FB,color:C.text}}>
+      {/* Sidebar */}
+      <aside style={{width:220,background:C.surface,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:100}}>
+        <div style={{padding:"18px 18px 14px",borderBottom:`1px solid ${C.border}`}}>
+          <div style={{fontFamily:FD,fontSize:20,fontWeight:800,letterSpacing:"-0.5px"}}>
+            <span style={{color:C.accent}}>Trans</span><span style={{color:C.text}}>Log</span>
+            <span style={{fontSize:11,color:C.muted,marginLeft:6,fontFamily:FM}}>v1.0</span>
+          </div>
+          <div style={{fontSize:9,color:C.muted,letterSpacing:"1.5px",textTransform:"uppercase",marginTop:3,fontFamily:FM}}>Transporte Corporativo</div>
+        </div>
+        <div style={{margin:"10px 14px",padding:"5px",background:C.surface2,borderRadius:8,border:`1px solid ${C.border}`,display:"flex",gap:3}}>
+          {[["coordinator","Coordinador"],["provider","Proveedor"]].map(([r,l])=>(
+            <div key={r} onClick={()=>setRole(r)} style={{flex:1,textAlign:"center",padding:"5px 0",borderRadius:6,fontSize:10,fontFamily:FM,cursor:"pointer",background:role===r?C.surface3:"transparent",color:role===r?C.accent:C.muted,transition:"all .15s"}}>{l}</div>
+          ))}
+        </div>
+        <nav style={{flex:1,padding:"4px 0",overflowY:"auto"}}>
+          {groups.map(g=>(
+            <div key={g}>
+              <div style={{padding:"10px 16px 5px",fontSize:9,textTransform:"uppercase",letterSpacing:"1.5px",color:C.muted,fontFamily:FM}}>{g}</div>
+              {NAV.filter(n=>n.group===g).map(n=>(
+                <div key={n.id} onClick={()=>setPage(n.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"9px 16px",fontSize:13,cursor:"pointer",color:page===n.id?C.accent:C.muted,borderLeft:`3px solid ${page===n.id?C.accent:"transparent"}`,background:page===n.id?"rgba(0,229,179,.06)":"transparent",fontWeight:page===n.id?600:400,transition:"all .15s"}}>
+                  <span style={{fontSize:14,width:18,textAlign:"center"}}>{n.icon}</span>
+                  <span style={{flex:1}}>{n.label}</span>
+                  {n.badge&&<span style={{background:C.red,color:"#fff",fontSize:9,fontFamily:FM,padding:"1px 5px",borderRadius:10}}>{n.badge}</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div style={{padding:"14px 16px",borderTop:`1px solid ${C.border}`,display:"flex",gap:10,alignItems:"center"}}>
+          <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.purple})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:C.bg}}>CR</div>
+          <div>
+            <div style={{fontSize:12,fontWeight:600,color:C.text}}>Carlos Rivera</div>
+            <div style={{fontSize:10,color:C.muted}}>{role==="coordinator"?"Coordinador Regional":"Proveedor"}</div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <main style={{marginLeft:220,flex:1,padding:24,minHeight:"100vh"}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20,gap:16}}>
+          <div>
+            <h1 style={{fontFamily:FD,fontSize:24,fontWeight:800,letterSpacing:"-0.5px",color:C.text}}>{titles[page]}</h1>
+            <div style={{fontSize:12,color:C.muted,marginTop:4}}>{subs[page]}</div>
+          </div>
+          <div style={{display:"flex",gap:10,alignItems:"center",flexShrink:0}}>
+            {page==="dashboard"&&(
+              <div style={{display:"flex",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:3,gap:2}}>
+                {["7D","MES","TRIM","AÑO"].map(p=>(
+                  <div key={p} onClick={()=>setPeriod(p)} style={{padding:"5px 12px",borderRadius:6,fontSize:11,cursor:"pointer",fontFamily:FM,background:period===p?C.surface3:"transparent",color:period===p?C.text:C.muted,transition:"all .15s"}}>{p}</div>
+                ))}
+              </div>
+            )}
+            {(page==="reports"||page==="dashboard")&&<Btn primary>⬇ Exportar</Btn>}
+            {page==="trips"&&<Btn primary>+ Nuevo Viaje</Btn>}
+          </div>
+        </div>
+        {page==="dashboard" && <Dashboard/>}
+        {page==="trips"     && <Trips/>}
+        {page==="checkin"   && <Checkin/>}
+        {page==="reports"   && <Reports/>}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
