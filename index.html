@@ -21,6 +21,42 @@
   @keyframes progress { to { width: 95%; } }
   @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
   .page-anim { animation: fadeIn .2s ease; }
+
+  /* ── RESPONSIVE ── */
+  .grid-4  { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+  .grid-2  { display: grid; grid-template-columns: 1fr 340px;     gap: 12px; }
+  .grid-2b { display: grid; grid-template-columns: 1fr 320px;     gap: 12px; }
+  .grid-2c { display: grid; grid-template-columns: 260px 1fr;     gap: 12px; }
+  .grid-2d { display: grid; grid-template-columns: 1fr 290px;     gap: 14px; }
+  .grid-2e { display: grid; grid-template-columns: 1fr 1fr;       gap: 14px; }
+
+  @media (max-width: 900px) {
+    .grid-4  { grid-template-columns: 1fr 1fr; }
+    .grid-2  { grid-template-columns: 1fr; }
+    .grid-2b { grid-template-columns: 1fr; }
+    .grid-2c { grid-template-columns: 1fr; }
+    .grid-2d { grid-template-columns: 1fr; }
+    .grid-2e { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    .grid-4  { grid-template-columns: 1fr 1fr; }
+    .grid-2e { grid-template-columns: 1fr; }
+  }
+
+  /* sidebar toggle for mobile */
+  .sidebar-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.6);
+    z-index: 99;
+  }
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-220px); transition: transform .25s; }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-overlay.show { display: block; }
+    .main-content { margin-left: 0 !important; }
+    .hamburger { display: flex !important; }
+  }
 </style>
 </head>
 <body>
@@ -226,7 +262,7 @@ function Dashboard() {
   return (
     <div style={{display:"flex",flexDirection:"column",gap:16}} className="page-anim">
       {/* KPIs */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+      <div className="grid-4">
         <KPI label="Gasto Mensual"  value={fmt(TOTAL_COST)}   sub="↑ 3.2% vs mes anterior" color={C.accent}  icon="💰"/>
         <KPI label="Viajes"          value={TRIPS.length}       sub="5 rutas activas"         color={C.orange}  icon="🚌"/>
         <KPI label="Pasajeros"       value={TOTAL_PASS}         sub="Ocupación prom. 76%"     color={C.purple}  icon="👥"/>
@@ -234,7 +270,7 @@ function Dashboard() {
       </div>
 
       {/* Bar chart + Alerts */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:12}}>
+      <div className="grid-2">
         <Card>
           <CardHeader title="Costo Mensual por Ruta" icon="📈" right={<span style={TAGS.ok}>6 rutas</span>}/>
           <div style={{padding:"20px 20px 14px"}}>
@@ -273,7 +309,7 @@ function Dashboard() {
       </div>
 
       {/* Route ranking + Branch compare */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 320px",gap:12}}>
+      <div className="grid-2b">
         <Card>
           <CardHeader title="Ranking de Rutas" icon="🏆" right={<Btn small>Ver todas →</Btn>}/>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -340,7 +376,7 @@ function Dashboard() {
       </div>
 
       {/* Employee top + recent trips */}
-      <div style={{display:"grid",gridTemplateColumns:"260px 1fr",gap:12}}>
+      <div className="grid-2c">
         <Card>
           <CardHeader title="Top Empleados" icon="👤"/>
           <div style={{paddingBottom:4}}>
@@ -419,7 +455,7 @@ function Checkin() {
   const validate=(i,v)=>setNames(ns=>ns.map((n,j)=>j===i?{...n,validated:v}:n));
 
   return (
-    <div style={{display:"grid",gridTemplateColumns:"1fr 290px",gap:14}} className="page-anim">
+    <div className="grid-2d page-anim">
       <Card>
         <div style={{display:"flex",borderBottom:`1px solid ${C.border}`}}>
           {[["ocr","📷 OCR"],["qr","📱 QR"],["batch","📦 Batch"]].map(([k,l])=>(
@@ -486,7 +522,7 @@ function Checkin() {
 
         {tab==="qr" && (
           <div style={{padding:20}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+            <div className="grid-2e">
               <div>
                 <div style={{fontSize:12,color:C.muted,marginBottom:10}}>1. Selecciona la ruta:</div>
                 {ROUTES.filter(r=>r.active).map(r=>(
@@ -671,7 +707,7 @@ function Reports() {
           </Btn>
         </div>
       </Card>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+      <div className="grid-4">
         <KPI label="Costo Total"   value={fmt(TOTAL_COST)}            sub="Jun 2025"             color={C.accent}  icon="💰"/>
         <KPI label="Costo/Persona" value={fmtD(AVG_CPP)}              sub="Promedio rutas"        color={C.yellow}  icon="👤"/>
         <KPI label="Ruta más cara" value="R-01"                        sub={fmt(ROUTE_STATS[0]?.totalCost||0)} color={C.orange} icon="🔺"/>
@@ -729,9 +765,12 @@ const NAV = [
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
 function App() {
-  const [page,setPage]   = React.useState("dashboard");
-  const [role,setRole]   = React.useState("coordinator");
+  const [page,setPage]     = React.useState("dashboard");
+  const [role,setRole]     = React.useState("coordinator");
   const [period,setPeriod] = React.useState("MES");
+  const [sideOpen,setSide] = React.useState(false);
+
+  const navigate = (id) => { setPage(id); setSide(false); };
 
   const titles = {dashboard:"Dashboard Operativo",trips:"Gestión de Viajes",checkin:"Check-in Digital",reports:"Reportes & Exportación"};
   const subs   = {dashboard:"Junio 2025 · 3 sucursales · Demo interactivo",trips:"Historial de viajes con costo y ocupación",checkin:"OCR desde imagen · Formulario QR por ruta",reports:"Exportación a Excel · Filtros por fecha y ruta"};
@@ -739,8 +778,12 @@ function App() {
 
   return (
     <div style={{display:"flex",minHeight:"100vh",background:C.bg,fontFamily:FB,color:C.text}}>
+
+      {/* Mobile overlay */}
+      <div className={`sidebar-overlay${sideOpen?" show":""}`} onClick={()=>setSide(false)}/>
+
       {/* Sidebar */}
-      <aside style={{width:220,background:C.surface,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:100}}>
+      <aside className={`sidebar${sideOpen?" open":""}`} style={{width:220,background:C.surface,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:100}}>
         <div style={{padding:"18px 18px 14px",borderBottom:`1px solid ${C.border}`}}>
           <div style={{fontFamily:FD,fontSize:20,fontWeight:800,letterSpacing:"-0.5px"}}>
             <span style={{color:C.accent}}>Trans</span><span style={{color:C.text}}>Log</span>
@@ -758,10 +801,10 @@ function App() {
             <div key={g}>
               <div style={{padding:"10px 16px 5px",fontSize:9,textTransform:"uppercase",letterSpacing:"1.5px",color:C.muted,fontFamily:FM}}>{g}</div>
               {NAV.filter(n=>n.group===g).map(n=>(
-                <div key={n.id} onClick={()=>setPage(n.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"9px 16px",fontSize:13,cursor:"pointer",color:page===n.id?C.accent:C.muted,borderLeft:`3px solid ${page===n.id?C.accent:"transparent"}`,background:page===n.id?"rgba(0,229,179,.06)":"transparent",fontWeight:page===n.id?600:400,transition:"all .15s"}}>
-                  <span style={{fontSize:14,width:18,textAlign:"center"}}>{n.icon}</span>
+                <div key={n.id} onClick={()=>navigate(n.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"12px 16px",fontSize:14,cursor:"pointer",color:page===n.id?C.accent:C.muted,borderLeft:`3px solid ${page===n.id?C.accent:"transparent"}`,background:page===n.id?"rgba(0,229,179,.06)":"transparent",fontWeight:page===n.id?600:400,transition:"all .15s"}}>
+                  <span style={{fontSize:18,width:22,textAlign:"center"}}>{n.icon}</span>
                   <span style={{flex:1}}>{n.label}</span>
-                  {n.badge&&<span style={{background:C.red,color:"#fff",fontSize:9,fontFamily:FM,padding:"1px 5px",borderRadius:10}}>{n.badge}</span>}
+                  {n.badge&&<span style={{background:C.red,color:"#fff",fontSize:9,fontFamily:FM,padding:"2px 6px",borderRadius:10}}>{n.badge}</span>}
                 </div>
               ))}
             </div>
@@ -777,22 +820,31 @@ function App() {
       </aside>
 
       {/* Main */}
-      <main style={{marginLeft:220,flex:1,padding:24,minHeight:"100vh"}}>
-        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20,gap:16}}>
+      <main className="main-content" style={{marginLeft:220,flex:1,padding:"16px",minHeight:"100vh",maxWidth:"100%",overflowX:"hidden"}}>
+
+        {/* Mobile top bar */}
+        <div className="hamburger" style={{display:"none",alignItems:"center",gap:12,marginBottom:16,padding:"10px 0"}}>
+          <button onClick={()=>setSide(true)} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 12px",color:C.text,fontSize:18,cursor:"pointer",lineHeight:1}}>☰</button>
           <div>
-            <h1 style={{fontFamily:FD,fontSize:24,fontWeight:800,letterSpacing:"-0.5px",color:C.text}}>{titles[page]}</h1>
+            <div style={{fontFamily:FD,fontSize:16,fontWeight:800}}><span style={{color:C.accent}}>Trans</span>Log</div>
+          </div>
+        </div>
+
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20,gap:12,flexWrap:"wrap"}}>
+          <div>
+            <h1 style={{fontFamily:FD,fontSize:22,fontWeight:800,letterSpacing:"-0.5px",color:C.text}}>{titles[page]}</h1>
             <div style={{fontSize:12,color:C.muted,marginTop:4}}>{subs[page]}</div>
           </div>
-          <div style={{display:"flex",gap:10,alignItems:"center",flexShrink:0}}>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,flexWrap:"wrap"}}>
             {page==="dashboard"&&(
               <div style={{display:"flex",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:3,gap:2}}>
                 {["7D","MES","TRIM","AÑO"].map(p=>(
-                  <div key={p} onClick={()=>setPeriod(p)} style={{padding:"5px 12px",borderRadius:6,fontSize:11,cursor:"pointer",fontFamily:FM,background:period===p?C.surface3:"transparent",color:period===p?C.text:C.muted,transition:"all .15s"}}>{p}</div>
+                  <div key={p} onClick={()=>setPeriod(p)} style={{padding:"5px 10px",borderRadius:6,fontSize:11,cursor:"pointer",fontFamily:FM,background:period===p?C.surface3:"transparent",color:period===p?C.text:C.muted,transition:"all .15s"}}>{p}</div>
                 ))}
               </div>
             )}
-            {(page==="reports"||page==="dashboard")&&<Btn primary>⬇ Exportar</Btn>}
-            {page==="trips"&&<Btn primary>+ Nuevo Viaje</Btn>}
+            {(page==="reports"||page==="dashboard")&&<Btn primary small>⬇ Exportar</Btn>}
+            {page==="trips"&&<Btn primary small>+ Nuevo Viaje</Btn>}
           </div>
         </div>
         {page==="dashboard" && <Dashboard/>}
